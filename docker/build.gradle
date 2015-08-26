@@ -1,0 +1,69 @@
+apply plugin: 'com.bmuschko.docker-remote-api'
+
+import com.bmuschko.gradle.docker.tasks.image.Dockerfile
+import com.bmuschko.gradle.docker.tasks.container.*
+import com.bmuschko.gradle.docker.tasks.image.*
+
+defaultTasks 'createDockerFile'
+description = "Sparkling-Water Docker Support"
+
+dependencies{
+    // scala library
+    compile "org.scala-lang:scala-library:${scalaVersion}"
+}
+
+ext {
+    docker_spark_version = "spark-${sparkVersion}-bin-hadoop2.6"
+    docker_spark_download_url = "http://d3kbcqa49mib13.cloudfront.net/${docker_spark_version}.tgz"
+    latestSparklingVersion = new URL('http://h2o-release.s3.amazonaws.com/sparkling-water/master/latest').getText()
+    docker_sparkling_water_version = "sparkling-water-0.2.${latestSparklingVersion}"
+    docker_sparkling_water_download_url = "http://h2o-release.s3.amazonaws.com/sparkling-water/master/{$latestSparklingVersion}/${docker_sparkling_water_version}.zip"
+}
+
+task createDockerfile(type: Dockerfile) {
+    destFile = project.file('sparkling-test/base/Dockerfile')
+    from 'ubuntu:trusty'
+
+
+    runCommand "apt-get update"
+    runCommand "apt-get -y install software-properties-common"
+    runCommand "add-apt-repository ppa:webupd8team/java"
+    runCommand "apt-get update"
+
+    // automatically accept oracle license
+    runCommand "echo oracle-java7-installer shared/accepted-oracle-license-v1-1 select true | /usr/bin/debconf-set-selections"
+
+    // and install java 7 oracle jdk
+    runCommand "apt-get -y install oracle-java7-installer && apt-get clean"
+    runCommand "apt-get -y install oracle-java7-set-default"
+
+    // Install additional tools
+    runCommand "apt-get -y install \
+                less \
+                curl \
+                vim-tiny \
+                sudo \
+                openssh-server \
+                unzip"
+
+    // Install Spark
+    runCommand "curl -s ${docker_spark_download_url} | tar -xz -C /opt && \
+                    ln -s /opt/${docker_spark_version} /opt/spark && \
+                    mkdir /opt/spark/work && \
+                    chmod 0777 /opt/spark/work"
+
+    // Install Sparkling water
+    runCommand "curl -s ${docker_sparkling_water_download_url} --output sw.zip && \
+                    unzip sw.zip -d /opt/ && \
+                    ln -s /opt/${docker_sparkling_water_version} /opt/sparkling-water && \
+                    rm -f sw.zip"
+
+    // Setup environment
+    environmentVariable("SPARK_HOME","/opt/spark")
+    environmentVariable("SPARKLING_WATER_HOME","/opt/sparkling-water")
+
+    workingDir "/opt/sparkling-water"
+}
+
+
+assemble.dependsOn createDockerfile

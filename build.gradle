@@ -24,6 +24,7 @@ buildscript {
         // https://github.com/researchgate/gradle-release
         classpath 'net.researchgate:gradle-release:2.0.2'
         classpath 'com.adaptc.gradle:nexus-workflow:0.6'
+        classpath 'com.bmuschko:gradle-docker-plugin:2.5.2'
     }
 }
 

@@ -1,5 +1,10 @@
 # Docker Support
 
+## Create DockerFile
+
+Docker file is automatically created when ```$ ./gradlew build``` is invoked.
+To create it whenever after call ```$ ./gradlew createDockerFile```
+
 ## Building a container
 
 ```

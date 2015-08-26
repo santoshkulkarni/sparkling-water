@@ -31,3 +31,6 @@ demofiles.list
 
 # H2O stuff #
 h2ologs/
+
+# generated Dockerfile
+docker/sparkling-test/base/Dockerfile
