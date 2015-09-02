@@ -35,8 +35,6 @@ dependencies {
 //
 artifacts {
   integTestAssembly jar
-  // No tests for examples
-  //integTestAssembly testJar
   integTestAssembly integTestJar
 
   // pull selected dependencies
@@ -49,7 +47,6 @@ integTest {
   // Pass references to libraries to test launcher
   systemProperty "spark.testing",   "true"
   systemProperty "spark.test.home", "${sparkHome}"
-  systemProperty "sparkling.test.hdp.version", "${hdpVersion}"
   if (sparkMaster != null)
     systemProperty "spark.master", "${sparkMaster}"
   // Pass list of jars required for testing
@@ -80,7 +77,7 @@ integTest {
   // Working dir will be root project
   workingDir = rootDir
   // Increase test runner memory
-  maxHeapSize = "2g"
+  maxHeapSize = "4g"
 
   // Show standard out and standard error of the test JVM(s) on the console
   // DEBUG testLogging.showStandardStreams = true
@@ -99,7 +96,7 @@ scriptsTest {
   forkEvery = 1
   jvmArgs '-XX:MaxPermSize=384m'
   // Increase test runner memory
-  maxHeapSize = "2g"
+  maxHeapSize = "4g"
   // Working dir will be root project
   workingDir = rootDir
 }

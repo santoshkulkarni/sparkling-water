@@ -35,11 +35,10 @@ shadowJar {
     include(dependency("org.javassist:javassist"))
     include(dependency("gov.nist.math:jama"))
     include(dependency("com.google.code.gson:gson"))
-    include(dependency("ai.h2o:reflections:0.9.11-h2o-custom"))
+    include(dependency("ai.h2o:reflections"))
     include(dependency("ai.h2o:google-analytics-java"))
     include(dependency("com.google.guava:guava"))
     include(dependency("com.github.tony19:named-regexp"))
-
     include(dependency("org.eclipse.jetty.aggregate:jetty-servlet"))
     include(dependency("org.eclipse.jetty:jetty-server"))
     include(dependency("org.eclipse.jetty:jetty-plus:8.1.17.v20150415"))
