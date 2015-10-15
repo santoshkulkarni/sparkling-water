@@ -7,7 +7,7 @@ import static java.nio.file.StandardCopyOption.*;
 
 
 defaultTasks 'build_python'
-description = "Sparkling-Water Python Package"
+description = "PySparkling - Sparkling-Water Python Package"
 
 
 def getOS() {
@@ -23,7 +23,7 @@ ext {
 }
 
 task setProjectVersion << {
-    File INIT = new File([T, "sparkling_water", "__init__.py"].join(File.separator))
+    File INIT = new File([T, "pysparkling", "__init__.py"].join(File.separator))
     print INIT.path
     def txt = ""
     txt = INIT.text
@@ -33,7 +33,7 @@ task setProjectVersion << {
 
 
 task resetProjectVersion << {
-    File INIT = new File([T, "sparkling_water", "__init__.py"].join(File.separator))
+    File INIT = new File([T, "pysparkling", "__init__.py"].join(File.separator))
     print INIT.path
     def txt = ""
     txt = INIT.text

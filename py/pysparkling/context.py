@@ -41,9 +41,7 @@ class H2OContext(object):
         self._jhc.start()
         self._client_ip = self._jhc.h2oLocalClientIp()
         self._client_port = self._jhc.h2oLocalClientPort()
-        if (init_h2o_client) {
-        }
-        
+
 
     def stop(self):
         self._jhc.stop(False)
