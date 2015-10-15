@@ -18,6 +18,7 @@
 package org.apache.spark.h2o
 
 import org.apache.spark._
+import org.apache.spark.api.java.JavaSparkContext
 import org.apache.spark.h2o.H2OContextUtils._
 import org.apache.spark.rdd.{H2ORDD, H2OSchemaRDD}
 import org.apache.spark.sql.types._
@@ -49,11 +50,16 @@ class H2OContext (@transient val sparkContext: SparkContext) extends {
   with H2OConf
   with Serializable {
 
+  /** Supports call from java environments. */
+  def this(sparkContext: JavaSparkContext) = this(sparkContext.sc)
+
   /** Runtime list of active H2O nodes */
   private val h2oNodes = mutable.ArrayBuffer.empty[NodeDesc]
 
-  /** Location (IP:PORT) of local H2O client */
-  private var localClient: String = _
+  /** IP of H2O client */
+  private var localClientIp: String = _
+  /** REST port of H2O client */
+  private var localClientPort: Int = _
 
   /** Implicit conversion from Spark DataFrame to H2O's DataFrame */
   implicit def asH2OFrame(rdd : DataFrame) : H2OFrame = H2OContext.toH2OFrame(sparkContext, rdd)
@@ -99,7 +105,12 @@ class H2OContext (@transient val sparkContext: SparkContext) extends {
     * Property value is derived from SparkContext during creation of H2OContext. */
   private def numOfSparkExecutors = if (sparkContext.isLocal) 1 else sparkContext.getExecutorStorageStatus.length - 1
 
-  def h2oLocalClient = this.localClient
+  def h2oLocalClient = this.localClientIp + ":" + this.localClientPort
+
+  def h2oLocalClientIp = this.localClientIp
+
+  def h2oLocalClientPort = this.localClientPort
+
   // For now disable opening Spark UI
   //def sparkUI = sparkContext.ui.map(ui => ui.appUIAddress)
 
@@ -162,8 +173,10 @@ class H2OContext (@transient val sparkContext: SparkContext) extends {
       // Since LocalBackend does not wait for initialization (yet)
       H2O.waitForCloudSize(1, cloudTimeout)
     }
-    // Get H2O web port
-    localClient = H2O.getIpPortString
+    // Fill information about H2O client
+    localClientIp = H2O.SELF_ADDRESS.getHostAddress
+    localClientPort = H2O.API_PORT
+
     // Inform user about status
     logInfo("Sparkling Water started, status of context: " + this.toString)
     this
@@ -266,12 +279,22 @@ class H2OContext (@transient val sparkContext: SparkContext) extends {
       |  ${h2oNodes.mkString("\n  ")}
       |  ------------------------
       |
-      |  Open H2O Flow in browser: http://${localClient} (CMD + click in Mac OSX)
+      |  Open H2O Flow in browser: http://${h2oLocalClient} (CMD + click in Mac OSX)
     """.stripMargin
   }
 }
 
 object H2OContext extends Logging {
+
+  /**
+   * Create a new or return existing H2OContext.
+   *
+   * @param sparkContext
+   * @return
+   */
+  def getOrCreate(sparkContext: SparkContext): H2OContext = {
+    new H2OContext(sparkContext)
+  }
 
   /** Transform SchemaRDD into H2O DataFrame */
   def toH2OFrame(sc: SparkContext, dataFrame: DataFrame) : H2OFrame = {
@@ -598,7 +621,7 @@ object H2OContext extends Logging {
     //this is here to override the SQLContext by the spark shell, this instance than can be obtained using SQLContext.getOrCreate(sc)
     new SQLContext(sc)
 
-    registerScalaIntEndp(sc, h2OContext)
+    //FIXME disable for now:registerScalaIntEndp(sc, h2OContext)
     registerDataFramesEndp(sc, h2OContext)
     registerH2OFramesEndp(sc, h2OContext)
     registerRDDsEndp(sc)
