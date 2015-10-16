@@ -1,5 +1,13 @@
 from pyspark.context import SparkContext
-import h2o
+from pyspark.sql.dataframe import DataFrame
+from pyspark.rdd import RDD
+
+try:
+    import h2o
+    has_h2o = True
+except Exception:
+    println("H2O package is not available!")
+    has_h2o = False
 
 class H2OContext(object):
 
@@ -37,11 +45,16 @@ class H2OContext(object):
         self._client_ip = None
         self._client_port = None
 
-    def start(self, init_h2o_client = True):
+    def start(self, init_h2o_client = True, strict_version_check = False):
         self._jhc.start()
         self._client_ip = self._jhc.h2oLocalClientIp()
         self._client_port = self._jhc.h2oLocalClientPort()
 
+        if (has_h2o):
+            if (init_h2o_client):
+                h2o.init(ip=self._client_ip, port=self._client_port, strict_version_check = strict_version_check)
+        else:
+            println("H2O package is not available!")
 
     def stop(self):
         self._jhc.stop(False)
@@ -49,11 +62,10 @@ class H2OContext(object):
     def __str__(self):
         return "H2OContext ip={}, port={}".format(self._client_ip, self._client_port)
 
-    def get_client(self):
-        """
-        Returns h2o client.
-        """
-        pass
-
-
+    def as_h2o_frame(self, dataframe):
+        if isinstance(dataframe, DataFrame):
+            jdf = dataframe._jdf
+            return self._jhc.asH2OFrame(dataframe._jdf)
+        elif isinstance(dataframe, RDD):
+            raise Exception("Regular RDDs are not supported now!")
 

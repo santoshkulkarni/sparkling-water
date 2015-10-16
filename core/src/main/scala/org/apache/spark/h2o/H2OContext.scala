@@ -18,7 +18,7 @@
 package org.apache.spark.h2o
 
 import org.apache.spark._
-import org.apache.spark.api.java.JavaSparkContext
+import org.apache.spark.api.java.{JavaRDD, JavaSparkContext}
 import org.apache.spark.h2o.H2OContextUtils._
 import org.apache.spark.rdd.{H2ORDD, H2OSchemaRDD}
 import org.apache.spark.sql.types._
@@ -62,10 +62,12 @@ class H2OContext (@transient val sparkContext: SparkContext) extends {
   private var localClientPort: Int = _
 
   /** Implicit conversion from Spark DataFrame to H2O's DataFrame */
-  implicit def asH2OFrame(rdd : DataFrame) : H2OFrame = H2OContext.toH2OFrame(sparkContext, rdd)
+  implicit def asH2OFrame(df : DataFrame) : H2OFrame = H2OContext.toH2OFrame(sparkContext, df)
 
   /** Implicit conversion from typed RDD to H2O's DataFrame */
   implicit def asH2OFrame[A <: Product : TypeTag](rdd : RDD[A]) : H2OFrame = H2OContext.toH2OFrame(sparkContext, rdd)
+
+  def asH2OFrame[A <: Product : TypeTag](rdd : JavaRDD[A]) : H2OFrame = H2OContext.toH2OFrame(sparkContext, rdd.rdd)
 
   /** Implicit conversion from RDD[Primitive type] ( where primitive type can be String, Double, Float or Int) to appropriate H2OFrame */
   implicit def asH2OFrame(primitiveType: PrimitiveType): H2OFrame = H2OContext.toH2OFrame(sparkContext, primitiveType)

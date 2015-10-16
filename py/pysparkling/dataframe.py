@@ -8,7 +8,7 @@ from pysparkling import connection
 
 class DataFrame:
     def __init__(self):
-        self._id = ""
+        self._id = None
 
     @staticmethod
     def get_data_frame(data_frame_id):
