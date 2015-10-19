@@ -1,6 +1,8 @@
 from pyspark.context import SparkContext
 from pyspark.sql.dataframe import DataFrame
 from pyspark.rdd import RDD
+from pyspark.sql import SQLContext
+from types import *
 
 try:
     import h2o
@@ -19,6 +21,7 @@ class H2OContext(object):
 
     def _do_init(self, sparkContext):
         self._sc = sparkContext
+        self._sqlContext = SQLContext(sparkContext)
         self._jsc = sparkContext._jsc
         self._jvm = sparkContext._jvm
         self._gw = sparkContext._gateway
@@ -62,10 +65,24 @@ class H2OContext(object):
     def __str__(self):
         return "H2OContext ip={}, port={}".format(self._client_ip, self._client_port)
 
+
     def as_h2o_frame(self, dataframe):
         if isinstance(dataframe, DataFrame):
             jdf = dataframe._jdf
             return self._jhc.asH2OFrame(dataframe._jdf)
         elif isinstance(dataframe, RDD):
-            raise Exception("Regular RDDs are not supported now!")
+            # First check if the type T in RDD[T] is primitive - String, Float Int
+            if isinstance(dataframe.first(), StringType):
+                return self._jhc.asH2OFrameFromRDDString(dataframe._to_java_object_rdd())
+            elif isinstance(dataframe.first(), IntType):
+                return self._jhc.asH2OFrameFromRDDInt(dataframe._to_java_object_rdd())
+            elif isinstance(dataframe.first(), FloatType):
+                return self._jhc.asH2OFrameFromRDDDouble(dataframe._to_java_object_rdd())
+            else:
+                # Creates a DataFrame from an RDD of tuple/list, list or pandas.DataFrame.
+                # On scala backend, to transform RDD of Product to H2OFrame, we need to know Type Tag.
+                # Since there is no alternative for Product class in Python, we first transform the rdd to dataframe
+                # and then transform it to H2OFrame.
+                df = self._sqlContext.createDataFrame(dataframe)
+                return self._jhc.asH2OFrame(df._jdf)
 

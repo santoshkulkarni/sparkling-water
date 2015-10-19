@@ -17,8 +17,10 @@
 
 package org.apache.spark.h2o
 
+import com.sun.xml.internal.ws.resources.WsservletMessages
 import org.apache.spark._
-import org.apache.spark.api.java.{JavaRDD, JavaSparkContext}
+import org.apache.spark.api.java.{JavaRDDLike, JavaRDD, JavaSparkContext}
+import org.apache.spark.api.python.{SerDeUtil, PythonRDD}
 import org.apache.spark.h2o.H2OContextUtils._
 import org.apache.spark.rdd.{H2ORDD, H2OSchemaRDD}
 import org.apache.spark.sql.types._
@@ -64,10 +66,18 @@ class H2OContext (@transient val sparkContext: SparkContext) extends {
   /** Implicit conversion from Spark DataFrame to H2O's DataFrame */
   implicit def asH2OFrame(df : DataFrame) : H2OFrame = H2OContext.toH2OFrame(sparkContext, df)
 
-  /** Implicit conversion from typed RDD to H2O's DataFrame */
+  /** Implicit conversion from RDD of Product to H2O's DataFrame */
   implicit def asH2OFrame[A <: Product : TypeTag](rdd : RDD[A]) : H2OFrame = H2OContext.toH2OFrame(sparkContext, rdd)
 
   def asH2OFrame[A <: Product : TypeTag](rdd : JavaRDD[A]) : H2OFrame = H2OContext.toH2OFrame(sparkContext, rdd.rdd)
+
+  def asH2OFrameFromRDDString(rdd: JavaRDD[String]): H2OFrame = H2OContext.toH2OFrameFromRDDString(sparkContext,rdd.rdd)
+
+  def asH2OFrameFromRDDInt(rdd: JavaRDD[Int]): H2OFrame = H2OContext.toH2OFrameFromRDDInt(sparkContext,rdd.rdd)
+
+  def asH2OFrameFromRDDDouble(rdd: JavaRDD[Double]): H2OFrame = H2OContext.toH2OFrameFromRDDDouble(sparkContext,rdd.rdd)
+
+  def asH2OFrameFromRDDFloat(rdd: JavaRDD[Float]): H2OFrame = H2OContext.toH2OFrameFromRDDFloat(sparkContext,rdd.rdd)
 
   /** Implicit conversion from RDD[Primitive type] ( where primitive type can be String, Double, Float or Int) to appropriate H2OFrame */
   implicit def asH2OFrame(primitiveType: PrimitiveType): H2OFrame = H2OContext.toH2OFrame(sparkContext, primitiveType)
@@ -120,6 +130,7 @@ class H2OContext (@transient val sparkContext: SparkContext) extends {
   def start(h2oWorkers: Int):H2OContext = {
     sparkConf.set(PROP_CLUSTER_SIZE._1, h2oWorkers.toString)
     start()
+
   }
 
   /** Initialize Sparkling H2O and start H2O cloud. */
@@ -298,7 +309,7 @@ object H2OContext extends Logging {
     new H2OContext(sparkContext)
   }
 
-  /** Transform SchemaRDD into H2O DataFrame */
+  /** Transform Spark DataFrame ( renamed from SchemaRDD) into H2O DataFrame */
   def toH2OFrame(sc: SparkContext, dataFrame: DataFrame) : H2OFrame = {
     import org.apache.spark.h2o.H2OSchemaUtils._
     // Cache DataFrame RDD's
@@ -358,7 +369,7 @@ object H2OContext extends Logging {
     }
   }
 
-  /** Transform typed RDD into H2O DataFrame */
+  /** Transform RDD of Product into H2O DataFrame */
   def toH2OFrame[A <: Product : TypeTag](sc: SparkContext, rdd: RDD[A]) : H2OFrame = {
     import org.apache.spark.h2o.H2OProductUtils._
     import org.apache.spark.h2o.ReflectionUtils._
