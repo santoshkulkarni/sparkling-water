@@ -75,6 +75,8 @@ class H2OContext (@transient val sparkContext: SparkContext) extends {
 
   def asH2OFrameFromRDDInt(rdd: JavaRDD[Int]): H2OFrame = H2OContext.toH2OFrameFromRDDInt(sparkContext,rdd.rdd)
 
+  def asH2OFrameFromRDDIntKey(rdd: JavaRDD[Int]): Key[Frame] = asH2OFrameFromRDDInt(rdd)._key
+
   def asH2OFrameFromRDDDouble(rdd: JavaRDD[Double]): H2OFrame = H2OContext.toH2OFrameFromRDDDouble(sparkContext,rdd.rdd)
 
   def asH2OFrameFromRDDFloat(rdd: JavaRDD[Float]): H2OFrame = H2OContext.toH2OFrameFromRDDFloat(sparkContext,rdd.rdd)
@@ -309,7 +311,7 @@ object H2OContext extends Logging {
     new H2OContext(sparkContext)
   }
 
-  /** Transform Spark DataFrame ( renamed from SchemaRDD) into H2O DataFrame */
+  /** Transform Spark DataFrame (renamed from SchemaRDD) into H2O DataFrame */
   def toH2OFrame(sc: SparkContext, dataFrame: DataFrame) : H2OFrame = {
     import org.apache.spark.h2o.H2OSchemaUtils._
     // Cache DataFrame RDD's

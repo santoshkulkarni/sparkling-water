@@ -3,6 +3,7 @@ from pyspark.sql.dataframe import DataFrame
 from pyspark.rdd import RDD
 from pyspark.sql import SQLContext
 from types import *
+from h2o.frame import H2OFrame
 
 try:
     import h2o
@@ -21,7 +22,9 @@ class H2OContext(object):
 
     def _do_init(self, sparkContext):
         self._sc = sparkContext
-        self._sqlContext = SQLContext(sparkContext)
+        # do not instantiate sqlContext when already one exists
+        jsqlContext = self._sc._jvm.SQLContext.getOrCreate(self._sc._jsc.sc())
+        self._sqlContext = SQLContext(sparkContext,jsqlContext)
         self._jsc = sparkContext._jsc
         self._jvm = sparkContext._jvm
         self._gw = sparkContext._gateway
@@ -65,24 +68,53 @@ class H2OContext(object):
     def __str__(self):
         return "H2OContext ip={}, port={}".format(self._client_ip, self._client_port)
 
+    def as_data_frame(self, h2o_frame):
+        if isinstance(h2o_frame,H2OFrame):
+            jdf = self._jhc.asDataFrame(h2o_frame, self._sqlContext)
+            return DataFrame(jdf,self._sqlContext)
+
+    def is_of_simple_type(self, rdd):
+        if not isinstance(rdd,RDD):
+            raise ValueError('rdd is not of type pyspark.rdd.RDD')
+
+        if isinstance(rdd.first(), (StringType, IntType, FloatType)):
+            return True
+        else:
+            return False
+
+    def get_first(self, rdd):
+        if rdd.isEmpty():
+            raise ValueError('rdd is empty')
+
+        return rdd.first()
 
     def as_h2o_frame(self, dataframe):
         if isinstance(dataframe, DataFrame):
-            jdf = dataframe._jdf
-            return self._jhc.asH2OFrame(dataframe._jdf)
+            j_h2o_frame = self._jhc.asH2OFrame(dataframe._jdf)
+            j_h2o_frame_key = self._jhc.toH2OFrameKey(dataframe._jdf)
+            return H2OFrame.from_java_h2o_frame(j_h2o_frame,j_h2o_frame_key)
         elif isinstance(dataframe, RDD):
-            # First check if the type T in RDD[T] is primitive - String, Float Int
-            if isinstance(dataframe.first(), StringType):
-                return self._jhc.asH2OFrameFromRDDString(dataframe._to_java_object_rdd())
-            elif isinstance(dataframe.first(), IntType):
-                return self._jhc.asH2OFrameFromRDDInt(dataframe._to_java_object_rdd())
-            elif isinstance(dataframe.first(), FloatType):
-                return self._jhc.asH2OFrameFromRDDDouble(dataframe._to_java_object_rdd())
+            # First check if the type T in RDD[T] is primitive - String, Float, Int
+            if self.is_of_simple_type(dataframe):
+                first = self.get_first(dataframe)
+                if isinstance(first,StringType):
+                    j_h2o_frame = self._jhc.asH2OFrameFromRDDString(dataframe._to_java_object_rdd())
+                    j_h2o_frame_key = self._jhc.asH2OFrameFromRDDStringKey(dataframe._to_java_object_rdd())
+                    return H2OFrame.get_frame(j_h2o_frame_key)
+                elif isinstance(first, IntType):
+                    j_h2o_frame =  self._jhc.asH2OFrameFromRDDInt(dataframe._to_java_object_rdd())
+                    j_h2o_frame_key = self._jhc.asH2OFrameFromRDDIntKey(dataframe._to_java_object_rdd())
+                    return H2OFrame.get_frame(j_h2o_frame_key.toString())
+                elif isinstance(first, FloatType):
+                    j_h2o_frame = self._jhc.asH2OFrameFromRDDDouble(dataframe._to_java_object_rdd())
+                    j_h2o_frame_key = self._jhc.asH2OFrameFromRDDDoubleKey(dataframe._to_java_object_rdd())
+                    return H2OFrame.from_java_h2o_frame(j_h2o_frame, j_h2o_frame_key)
             else:
                 # Creates a DataFrame from an RDD of tuple/list, list or pandas.DataFrame.
                 # On scala backend, to transform RDD of Product to H2OFrame, we need to know Type Tag.
                 # Since there is no alternative for Product class in Python, we first transform the rdd to dataframe
                 # and then transform it to H2OFrame.
-                df = self._sqlContext.createDataFrame(dataframe)
-                return self._jhc.asH2OFrame(df._jdf)
+                #df = self._sqlContext.createDataFrame(dataframe)
+                #return self._jhc.asH2OFrame(df._jdf)
+                raise ValueError('rdd is not of type pyspark.rdd.RDD')
 
