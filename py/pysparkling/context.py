@@ -16,9 +16,44 @@ class H2OContext(object):
 
     def __init__(self, sparkContext):
         try:
+            H2OContext._monkey_patch_H2OFrame()
             self._do_init(sparkContext)
         except:
             raise
+
+    @staticmethod
+    def _monkey_patch_H2OFrame():
+        @staticmethod
+        def determine_java_vec_type(vec):
+            if vec.isEnum():
+                return "enum"
+            elif vec.isUUID():
+                return "uuid"
+            elif vec.isString():
+                return "string"
+            elif vec.isInt():
+                if vec.isTime():
+                    return "time"
+                else:
+                    return "int"
+            else:
+                return "real"
+
+        @staticmethod
+        def from_java_h2o_frame(h2o_frame, h2o_frame_id):
+            fr = H2OFrame()
+            fr._backed_by_java_obj = True
+            fr._nrows = h2o_frame.numRows()
+            fr._ncols = h2o_frame.numCols()
+            fr._id = h2o_frame_id.toString()
+            fr._computed = True
+            fr._keep = True
+            fr._col_names =  [c for c in h2o_frame.names()]
+            types = [H2OFrame.determine_java_vec_type(h2o_frame.vec(name)) for name in fr._col_names]
+            fr._types = dict(zip(fr._col_names,types))
+            return fr
+        H2OFrame.determine_java_vec_type = determine_java_vec_type
+        H2OFrame.from_java_h2o_frame = from_java_h2o_frame
 
     def _do_init(self, sparkContext):
         self._sc = sparkContext
@@ -87,7 +122,7 @@ class H2OContext(object):
             raise ValueError('rdd is empty')
 
         return rdd.first()
-
+   
     def as_h2o_frame(self, dataframe):
         if isinstance(dataframe, DataFrame):
             j_h2o_frame = self._jhc.asH2OFrame(dataframe._jdf)
@@ -100,21 +135,21 @@ class H2OContext(object):
                 if isinstance(first,StringType):
                     j_h2o_frame = self._jhc.asH2OFrameFromRDDString(dataframe._to_java_object_rdd())
                     j_h2o_frame_key = self._jhc.asH2OFrameFromRDDStringKey(dataframe._to_java_object_rdd())
-                    return H2OFrame.get_frame(j_h2o_frame_key)
+                    return H2OFrame.from_java_h2o_frame(j_h2o_frame,j_h2o_frame_key)
                 elif isinstance(first, IntType):
                     j_h2o_frame =  self._jhc.asH2OFrameFromRDDInt(dataframe._to_java_object_rdd())
                     j_h2o_frame_key = self._jhc.asH2OFrameFromRDDIntKey(dataframe._to_java_object_rdd())
-                    return H2OFrame.get_frame(j_h2o_frame_key.toString())
+                    return H2OFrame.from_java_h2o_frame(j_h2o_frame,j_h2o_frame_key)
                 elif isinstance(first, FloatType):
                     j_h2o_frame = self._jhc.asH2OFrameFromRDDDouble(dataframe._to_java_object_rdd())
                     j_h2o_frame_key = self._jhc.asH2OFrameFromRDDDoubleKey(dataframe._to_java_object_rdd())
-                    return H2OFrame.from_java_h2o_frame(j_h2o_frame, j_h2o_frame_key)
+                    return H2OFrame.from_java_h2o_frame(j_h2o_frame,j_h2o_frame_key)
             else:
                 # Creates a DataFrame from an RDD of tuple/list, list or pandas.DataFrame.
                 # On scala backend, to transform RDD of Product to H2OFrame, we need to know Type Tag.
                 # Since there is no alternative for Product class in Python, we first transform the rdd to dataframe
                 # and then transform it to H2OFrame.
-                #df = self._sqlContext.createDataFrame(dataframe)
-                #return self._jhc.asH2OFrame(df._jdf)
-                raise ValueError('rdd is not of type pyspark.rdd.RDD')
-
+                df = self._sqlContext.createDataFrame(dataframe)
+                j_h2o_frame = self._jhc.asH2OFrame(df._jdf)
+                j_h2o_frame_key = self._jhc.toH2OFrameKey(df._jdf)
+                return H2OFrame.from_java_h2o_frame(j_h2o_frame,j_h2o_frame_key)
