@@ -6,11 +6,12 @@ import pysparkling.dataframe
 
 
 class SparklingWaterConnection:
-    def __init__(self, ip, port):
+    def __init__(self, ip, port, initialize = True):
         self.ip = ip
         self.port = port
         # initialize the http connection, needed for the communication via REST endpoints
-        h2o.init(ip=ip,port=port)
+        if initialize:
+            h2o.init(ip=ip, port=port)
 
     # Transform DataFrame to H2OFrame
     def as_h2o_frame(self, dataframe):

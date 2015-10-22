@@ -54,6 +54,17 @@ hc.start()
 
 ```
 
+# Testing
+
+## Development testing
+```
+  export PYTHONPATH=$SPARK_HOME/python:$SPARK_HOME/python/build:$SPARK_HOME/python/lib/py4j-0.8.2.1-src.zip:./:$PYTHONPATH
+  export SPARK_CLASSPATH=/Users/michal/Devel/projects/h2o/repos/sparkling-water/assembly/build/libs/sparkling-water-assembly-0.2.17-SNAPSHOT-all.jar
+```
+
+## Notes
+For Python applications, simply pass a .py file in the place of <application-jar> instead of a JAR, and add Python .zip, .egg or .py files to the search path with --py-files.
+
 ## Problems
 
 Spark Issues

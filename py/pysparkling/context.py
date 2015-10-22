@@ -3,57 +3,57 @@ from pyspark.sql.dataframe import DataFrame
 from pyspark.rdd import RDD
 from pyspark.sql import SQLContext
 from types import *
-from h2o.frame import H2OFrame
 
 try:
     import h2o
+    from h2o.frame import H2OFrame
     has_h2o = True
 except Exception:
     println("H2O package is not available!")
     has_h2o = False
 
+def _monkey_patch_H2OFrame():
+    @staticmethod
+    def determine_java_vec_type(vec):
+        if vec.isEnum():
+            return "enum"
+        elif vec.isUUID():
+            return "uuid"
+        elif vec.isString():
+            return "string"
+        elif vec.isInt():
+            if vec.isTime():
+                return "time"
+            else:
+                return "int"
+        else:
+            return "real"
+
+    @staticmethod
+    def from_java_h2o_frame(h2o_frame, h2o_frame_id):
+        fr = H2OFrame()
+        fr._backed_by_java_obj = True
+        fr._nrows = h2o_frame.numRows()
+        fr._ncols = h2o_frame.numCols()
+        fr._id = h2o_frame_id.toString()
+        fr._computed = True
+        fr._keep = True
+        fr._col_names =  [c for c in h2o_frame.names()]
+        types = [H2OFrame.determine_java_vec_type(h2o_frame.vec(name)) for name in fr._col_names]
+        fr._types = dict(zip(fr._col_names,types))
+        return fr
+    H2OFrame.determine_java_vec_type = determine_java_vec_type
+    H2OFrame.from_java_h2o_frame = from_java_h2o_frame
+
 class H2OContext(object):
 
     def __init__(self, sparkContext):
         try:
-            H2OContext._monkey_patch_H2OFrame()
+            # Hack H2OFrame from h2o package
+            _monkey_patch_H2OFrame()
             self._do_init(sparkContext)
         except:
             raise
-
-    @staticmethod
-    def _monkey_patch_H2OFrame():
-        @staticmethod
-        def determine_java_vec_type(vec):
-            if vec.isEnum():
-                return "enum"
-            elif vec.isUUID():
-                return "uuid"
-            elif vec.isString():
-                return "string"
-            elif vec.isInt():
-                if vec.isTime():
-                    return "time"
-                else:
-                    return "int"
-            else:
-                return "real"
-
-        @staticmethod
-        def from_java_h2o_frame(h2o_frame, h2o_frame_id):
-            fr = H2OFrame()
-            fr._backed_by_java_obj = True
-            fr._nrows = h2o_frame.numRows()
-            fr._ncols = h2o_frame.numCols()
-            fr._id = h2o_frame_id.toString()
-            fr._computed = True
-            fr._keep = True
-            fr._col_names =  [c for c in h2o_frame.names()]
-            types = [H2OFrame.determine_java_vec_type(h2o_frame.vec(name)) for name in fr._col_names]
-            fr._types = dict(zip(fr._col_names,types))
-            return fr
-        H2OFrame.determine_java_vec_type = determine_java_vec_type
-        H2OFrame.from_java_h2o_frame = from_java_h2o_frame
 
     def _do_init(self, sparkContext):
         self._sc = sparkContext
@@ -87,6 +87,12 @@ class H2OContext(object):
         self._client_port = None
 
     def start(self, init_h2o_client = True, strict_version_check = False):
+        """
+        Start H2OContext.
+
+        It initializes H2O services on each node in Spark cluster and creates
+        H2O python client.
+        """
         self._jhc.start()
         self._client_ip = self._jhc.h2oLocalClientIp()
         self._client_port = self._jhc.h2oLocalClientPort()
@@ -109,7 +115,7 @@ class H2OContext(object):
             return DataFrame(jdf,self._sqlContext)
 
     def is_of_simple_type(self, rdd):
-        if not isinstance(rdd,RDD):
+        if not isinstance(rdd, RDD):
             raise ValueError('rdd is not of type pyspark.rdd.RDD')
 
         if isinstance(rdd.first(), (StringType, IntType, FloatType)):
@@ -122,7 +128,7 @@ class H2OContext(object):
             raise ValueError('rdd is empty')
 
         return rdd.first()
-   
+
     def as_h2o_frame(self, dataframe):
         if isinstance(dataframe, DataFrame):
             j_h2o_frame = self._jhc.asH2OFrame(dataframe._jdf)
