@@ -60,6 +60,7 @@ hc.start()
 ```
   export PYTHONPATH=$SPARK_HOME/python:$SPARK_HOME/python/build:$SPARK_HOME/python/lib/py4j-0.8.2.1-src.zip:./:$PYTHONPATH
   export SPARK_CLASSPATH=/Users/michal/Devel/projects/h2o/repos/sparkling-water/assembly/build/libs/sparkling-water-assembly-0.2.17-SNAPSHOT-all.jar
+  python -m unittest pysparkling/tests.py
 ```
 
 ## Notes
