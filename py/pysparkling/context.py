@@ -30,9 +30,18 @@ def _monkey_patch_H2OFrame():
         else:
             return "real"
 
+
+    def get_java_h2o_frame(self):
+        if hasattr(self, '_java_frame'):
+            return self._java_frame
+        else:
+            #TODO: Create new java H2OFrame based on the existing python H2OFrame and return it
+            raise
+
     @staticmethod
     def from_java_h2o_frame(h2o_frame, h2o_frame_id):
         fr = H2OFrame()
+        fr._java_frame = h2o_frame
         fr._backed_by_java_obj = True
         fr._nrows = h2o_frame.numRows()
         fr._ncols = h2o_frame.numCols()
@@ -45,6 +54,7 @@ def _monkey_patch_H2OFrame():
         return fr
     H2OFrame.determine_java_vec_type = determine_java_vec_type
     H2OFrame.from_java_h2o_frame = from_java_h2o_frame
+    H2OFrame.get_java_h2o_frame = get_java_h2o_frame
 
 class H2OContext(object):
 
@@ -59,8 +69,8 @@ class H2OContext(object):
     def _do_init(self, sparkContext):
         self._sc = sparkContext
         # do not instantiate sqlContext when already one exists
-        jsqlContext = self._sc._jvm.SQLContext.getOrCreate(self._sc._jsc.sc())
-        self._sqlContext = SQLContext(sparkContext,jsqlContext)
+        self._jsqlContext = self._sc._jvm.SQLContext.getOrCreate(self._sc._jsc.sc())
+        self._sqlContext = SQLContext(sparkContext,self._jsqlContext)
         self._jsc = sparkContext._jsc
         self._jvm = sparkContext._jvm
         self._gw = sparkContext._gateway
@@ -112,7 +122,8 @@ class H2OContext(object):
 
     def as_data_frame(self, h2o_frame):
         if isinstance(h2o_frame,H2OFrame):
-            jdf = self._jhc.asDataFrame(h2o_frame, self._sqlContext)
+            j_h2o_frame = h2o_frame.get_java_h2o_frame()
+            jdf = self._jhc.asDataFrame(j_h2o_frame, self._jsqlContext )
             return DataFrame(jdf,self._sqlContext)
 
     def is_of_simple_type(self, rdd):

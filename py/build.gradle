@@ -64,6 +64,18 @@ task buildDist(type: Exec) {
     commandLine getOsSpecificCommandLine(["python", "setup.py", "bdist_wheel"])
 }
 
+task test_python(type: Exec) {
+    def SPARK_HOME = System.getenv("SPARK_HOME")
+    if (SPARK_HOME != null) {
+        environment['PYTHONPATH'] = SPARK_HOME + File.separator + "python" + File.pathSeparator +
+                SPARK_HOME + File.separator + "python" + File.separator + "build" + File.pathSeparator +
+                SPARK_HOME + File.separator + "python" + File.separator + "lib" + File.separator + "py4j-0.8.2.1-src.zip" + File.pathSeparator +
+                "./" + File.pathSeparator + System.getenv("PYTHONPATH")
+    }
+    environment['SPARK_CLASSPATH'] = "${project(":sparkling-water-assembly").configurations.shadow.artifacts.file.join(',')}"
+    commandLine getOsSpecificCommandLine(["python", "-m", "unittest", "discover", "-s", "tests", "-p", "test*.py"])
+
+}
 def testsPath = new File("./tests")
 
 /*task smokeTest(type: Exec) {
@@ -95,4 +107,6 @@ buildDist.dependsOn copyJar
 resetProjectVersion.dependsOn buildDist
 task build_python(dependsOn: resetProjectVersion)
 build.dependsOn build_python
+
+test.dependsOn test_python
 
