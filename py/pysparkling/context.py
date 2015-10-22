@@ -2,7 +2,8 @@ from pyspark.context import SparkContext
 from pyspark.sql.dataframe import DataFrame
 from pyspark.rdd import RDD
 from pyspark.sql import SQLContext
-from types import *
+from h2o.frame import H2OFrame
+from pysparkling.utils import FrameConversions as fc
 
 try:
     import h2o
@@ -118,7 +119,7 @@ class H2OContext(object):
         if not isinstance(rdd, RDD):
             raise ValueError('rdd is not of type pyspark.rdd.RDD')
 
-        if isinstance(rdd.first(), (StringType, IntType, FloatType)):
+        if isinstance(rdd.first(), (str, int, bool, long, float)):
             return True
         else:
             return False
@@ -131,31 +132,21 @@ class H2OContext(object):
 
     def as_h2o_frame(self, dataframe):
         if isinstance(dataframe, DataFrame):
-            j_h2o_frame = self._jhc.asH2OFrame(dataframe._jdf)
-            j_h2o_frame_key = self._jhc.toH2OFrameKey(dataframe._jdf)
-            return H2OFrame.from_java_h2o_frame(j_h2o_frame,j_h2o_frame_key)
+            return fc._as_h2o_frame_from_dataframe(self,dataframe)
         elif isinstance(dataframe, RDD):
-            # First check if the type T in RDD[T] is primitive - String, Float, Int
+            # First check if the type T in RDD[T] is one of the python "primitive" types
+            # String, Boolean, Int and Double (Python Long is converted to java.lang.BigInteger)
             if self.is_of_simple_type(dataframe):
                 first = self.get_first(dataframe)
-                if isinstance(first,StringType):
-                    j_h2o_frame = self._jhc.asH2OFrameFromRDDString(dataframe._to_java_object_rdd())
-                    j_h2o_frame_key = self._jhc.asH2OFrameFromRDDStringKey(dataframe._to_java_object_rdd())
-                    return H2OFrame.from_java_h2o_frame(j_h2o_frame,j_h2o_frame_key)
-                elif isinstance(first, IntType):
-                    j_h2o_frame =  self._jhc.asH2OFrameFromRDDInt(dataframe._to_java_object_rdd())
-                    j_h2o_frame_key = self._jhc.asH2OFrameFromRDDIntKey(dataframe._to_java_object_rdd())
-                    return H2OFrame.from_java_h2o_frame(j_h2o_frame,j_h2o_frame_key)
-                elif isinstance(first, FloatType):
-                    j_h2o_frame = self._jhc.asH2OFrameFromRDDDouble(dataframe._to_java_object_rdd())
-                    j_h2o_frame_key = self._jhc.asH2OFrameFromRDDDoubleKey(dataframe._to_java_object_rdd())
-                    return H2OFrame.from_java_h2o_frame(j_h2o_frame,j_h2o_frame_key)
+                if isinstance(first, str):
+                    return fc._as_h2o_frame_from_RDD_String(self,dataframe)
+                elif isinstance(first, bool):
+                    return fc._as_h2o_frame_from_RDD_Bool(self,dataframe)
+                elif isinstance(dataframe.max(), int):
+                    return fc._as_h2o_frame_from_RDD_Long(self,dataframe)
+                elif isinstance(first, float):
+                    return fc._as_h2o_frame_from_RDD_Float(self,dataframe)
+                elif isinstance(dataframe.max(), long):
+                    raise ValueError('Numbers in RDD Too Big')
             else:
-                # Creates a DataFrame from an RDD of tuple/list, list or pandas.DataFrame.
-                # On scala backend, to transform RDD of Product to H2OFrame, we need to know Type Tag.
-                # Since there is no alternative for Product class in Python, we first transform the rdd to dataframe
-                # and then transform it to H2OFrame.
-                df = self._sqlContext.createDataFrame(dataframe)
-                j_h2o_frame = self._jhc.asH2OFrame(df._jdf)
-                j_h2o_frame_key = self._jhc.toH2OFrameKey(df._jdf)
-                return H2OFrame.from_java_h2o_frame(j_h2o_frame,j_h2o_frame_key)
+                return fc._as_h2o_frame_from_complex_type(self,dataframe)

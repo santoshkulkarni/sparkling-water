@@ -17,10 +17,8 @@
 
 package org.apache.spark.h2o
 
-import com.sun.xml.internal.ws.resources.WsservletMessages
 import org.apache.spark._
-import org.apache.spark.api.java.{JavaRDDLike, JavaRDD, JavaSparkContext}
-import org.apache.spark.api.python.{SerDeUtil, PythonRDD}
+import org.apache.spark.api.java.{JavaRDD, JavaSparkContext}
 import org.apache.spark.h2o.H2OContextUtils._
 import org.apache.spark.rdd.{H2ORDD, H2OSchemaRDD}
 import org.apache.spark.sql.types._
@@ -69,18 +67,6 @@ class H2OContext (@transient val sparkContext: SparkContext) extends {
   /** Implicit conversion from RDD of Product to H2O's DataFrame */
   implicit def asH2OFrame[A <: Product : TypeTag](rdd : RDD[A]) : H2OFrame = H2OContext.toH2OFrame(sparkContext, rdd)
 
-  def asH2OFrame[A <: Product : TypeTag](rdd : JavaRDD[A]) : H2OFrame = H2OContext.toH2OFrame(sparkContext, rdd.rdd)
-
-  def asH2OFrameFromRDDString(rdd: JavaRDD[String]): H2OFrame = H2OContext.toH2OFrameFromRDDString(sparkContext,rdd.rdd)
-
-  def asH2OFrameFromRDDInt(rdd: JavaRDD[Int]): H2OFrame = H2OContext.toH2OFrameFromRDDInt(sparkContext,rdd.rdd)
-
-  def asH2OFrameFromRDDIntKey(rdd: JavaRDD[Int]): Key[Frame] = asH2OFrameFromRDDInt(rdd)._key
-
-  def asH2OFrameFromRDDDouble(rdd: JavaRDD[Double]): H2OFrame = H2OContext.toH2OFrameFromRDDDouble(sparkContext,rdd.rdd)
-
-  def asH2OFrameFromRDDFloat(rdd: JavaRDD[Float]): H2OFrame = H2OContext.toH2OFrameFromRDDFloat(sparkContext,rdd.rdd)
-
   /** Implicit conversion from RDD[Primitive type] ( where primitive type can be String, Double, Float or Int) to appropriate H2OFrame */
   implicit def asH2OFrame(primitiveType: PrimitiveType): H2OFrame = H2OContext.toH2OFrame(sparkContext, primitiveType)
 
@@ -99,6 +85,39 @@ class H2OContext (@transient val sparkContext: SparkContext) extends {
 
   /** Returns a key of given frame */
   implicit def toH2OFrameKey(fr: Frame): Key[Frame] = fr._key
+
+  /**
+   * Support for calls from Py4J
+   */
+
+  /** Conversion from RDD[String] to H2O's DataFrame */
+  def asH2OFrameFromRDDString(rdd: JavaRDD[String]): H2OFrame = H2OContext.toH2OFrameFromRDDString(sparkContext,rdd.rdd)
+
+  /** Returns key of the H2O's DataFrame conversed from RDD[String]*/
+  def asH2OFrameFromRDDStringKey(rdd: JavaRDD[String]): Key[Frame] = asH2OFrameFromRDDString(rdd)._key
+
+  /** Conversion from RDD[Boolean] to H2O's DataFrame */
+  def asH2OFrameFromRDDBool(rdd: JavaRDD[Boolean]): H2OFrame = H2OContext.toH2OFrameFromRDDBool(sparkContext,rdd.rdd)
+
+  /** Returns key of the H2O's DataFrame conversed from RDD[Boolean]*/
+  def asH2OFrameFromRDDBoolKey(rdd: JavaRDD[Boolean]): Key[Frame] = asH2OFrameFromRDDBool(rdd)._key
+
+  /** Conversion from RDD[Double] to H2O's DataFrame */
+  def asH2OFrameFromRDDDouble(rdd: JavaRDD[Double]): H2OFrame = H2OContext.toH2OFrameFromRDDDouble(sparkContext,rdd.rdd)
+
+  /** Returns key of the H2O's DataFrame conversed from RDD[Double]*/
+  def asH2OFrameFromRDDDoubleKey(rdd: JavaRDD[Double]): Key[Frame] = asH2OFrameFromRDDDouble(rdd)._key
+
+  /** Conversion from RDD[Long] to H2O's DataFrame */
+  def asH2OFrameFromRDDLong(rdd: JavaRDD[Long]): H2OFrame = H2OContext.toH2OFrameFromRDDLong(sparkContext,rdd.rdd)
+
+  /** Returns key of the H2O's DataFrame conversed from RDD[Long]*/
+  def asH2OFrameFromRDDLongKey(rdd: JavaRDD[Long]): Key[Frame] = asH2OFrameFromRDDLong(rdd)._key
+
+  /**
+   * Support for calls from Py4J
+   */
+
 
   /** Transform given Scala symbol to String */
   implicit def symbolToString(sy: scala.Symbol): String = sy.name
@@ -409,6 +428,12 @@ object H2OContext extends Logging {
   /** Transform RDD[Double] to appropriate H2OFrame */
   def toH2OFrameFromRDDDouble(sc: SparkContext, rdd: RDD[Double]): H2OFrame = toH2OFrameFromPrimitive(sc, rdd)
 
+  /** Transform RDD[Long] to appropriate H2OFrame */
+  def toH2OFrameFromRDDLong(sc: SparkContext, rdd: RDD[Long]): H2OFrame = toH2OFrameFromPrimitive(sc, rdd)
+
+  /** Transform RDD[Double] to appropriate H2OFrame */
+  def toH2OFrameFromRDDBool(sc: SparkContext, rdd: RDD[Boolean]): H2OFrame = toH2OFrameFromPrimitive(sc, rdd)
+
   private[this]
   def toH2OFrameFromPrimitive[T: TypeTag](sc: SparkContext, rdd: RDD[T]): H2OFrame = {
     import org.apache.spark.h2o.H2OPrimitiveTypesUtils._
@@ -453,9 +478,11 @@ object H2OContext extends Logging {
       // For all rows in RDD
       val chk = nchks(0) // There is only one chunk
       r match {
-        case i: Int => chk.addNum(i.toDouble)
-        case d: Double => chk.addNum(d)
-        case f: Float => chk.addNum(f.toDouble)
+        case t: Int => chk.addNum(t.toDouble)
+        case t: Double => chk.addNum(t)
+        case t: Float => chk.addNum(t.toDouble)
+        case t: Long => chk.addNum(t.toDouble)
+        case t: Boolean => chk.addNum(if(t) 1 else 0)
         case str: String => {
           if (domains(0) == null) chk.addStr(valStr.setTo(str))
           else {
