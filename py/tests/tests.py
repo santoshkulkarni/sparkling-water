@@ -1,7 +1,45 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+"""
+Unit tests for PySparkling; 
+"""
+
+import os
 import unittest
 from pyspark import SparkContext, SparkConf
 from pysparkling.context import H2OContext
 from h2o.frame import H2OFrame
+
+# We need spark home for testing
+SPARK_HOME = os.environ["SPARK_HOME"]
+
+class ReusedPySparklingTestCase(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        conf = SparkConf().setAppName("test").setMaster("local-cluster[3,1,512]")
+        cls._sc = SparkContext(conf=conf)
+        cls._hc = H2OContext(cls._sc)
+        cls._hc.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._sc.stop()
 
 class TestUtils:
     @staticmethod
@@ -11,18 +49,7 @@ class TestUtils:
         test_suite.assertEquals(h2o_frame._col_names,["values"],"Column should be name values")
 
 # Test of transformations from dataframe/rdd to h2o frame and from h2o frame back to dataframe
-class FrameTransformationsTest(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        conf = SparkConf().setAppName("test").setMaster("local-cluster[1,1,512]")
-        cls._sc = SparkContext(conf=conf)
-        cls._hc = H2OContext(cls._sc)
-        cls._hc.start()
-
-    @classmethod
-    def tearDownClass(cls):
-        cls._sc.stop()
+class FrameTransformationsTest(ReusedPySparklingTestCase):
 
     # test transformation from dataframe to h2o frame
     def test_df_to_h2o_frame(self):
