@@ -62,6 +62,12 @@ hc.start()
   export SPARK_CLASSPATH=./sparkling-water/assembly/build/libs/sparkling-water-assembly-0.2.17-SNAPSHOT-all.jar
   python -m unittest pysparkling/tests.py
 ```
+## Testing from Gradle
+Needs:
+  - SPARK_HOME
+  - H2O_HOME (dev, downloadeded) - you can test against different H2O versions
+  - python 
+  - python packages for H2O
 
 ## Notes
 For Python applications, simply pass a .py file in the place of <application-jar> instead of a JAR, and add Python .zip, .egg or .py files to the search path with --py-files.

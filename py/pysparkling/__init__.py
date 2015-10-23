@@ -1,6 +1,6 @@
 # encoding: utf-8
 # module pySparkling
-# from (sparkling-water)
+# from (pysparkling)
 """
 pySparkling - The Sparkling-Water Python Package
 =====================
