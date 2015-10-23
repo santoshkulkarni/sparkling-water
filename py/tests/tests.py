@@ -59,7 +59,6 @@ class FrameTransformationsTest(ReusedPySparklingTestCase):
         self.assertEquals(h2o_frame._nrows,df.count(),"Number of rows should match")
         self.assertEquals(h2o_frame._ncols,len(df.columns),"Number of columns should match")
         self.assertEquals(h2o_frame._col_names,df.columns,"Column names should match")
-        self.assertEquals(df.first()._1,0,"Value should match")
         self.assertEquals(df.first()._2,"text","Value should match")
 
      # test transformation from RDD consisting of python integers to h2o frame
@@ -137,5 +136,4 @@ class FrameTransformationsTest(ReusedPySparklingTestCase):
         self.assertEquals(df.count(), h2o_frame._nrows,"Number of rows should match")
         self.assertEquals(len(df.columns), h2o_frame._ncols,"Number of columns should match")
         self.assertEquals(df.columns,h2o_frame._col_names,"Column names should match")
-        self.assertEquals(df.first().values,"a","Value should match")
 
