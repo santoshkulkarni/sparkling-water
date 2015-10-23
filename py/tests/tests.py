@@ -14,11 +14,15 @@ class TestUtils:
 class FrameTransformationsTest(unittest.TestCase):
 
     @classmethod
-    def setUpClass(self):
+    def setUpClass(cls):
         conf = SparkConf().setAppName("test").setMaster("local-cluster[1,1,512]")
-        self._sc = SparkContext(conf=conf)
-        self._hc = H2OContext(self._sc)
-        self._hc.start()
+        cls._sc = SparkContext(conf=conf)
+        cls._hc = H2OContext(cls._sc)
+        cls._hc.start()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._sc.stop()
 
     # test transformation from dataframe to h2o frame
     def test_df_to_h2o_frame(self):
