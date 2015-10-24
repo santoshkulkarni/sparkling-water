@@ -13,7 +13,7 @@ except Exception:
     println("H2O package is not available!")
     has_h2o = False
 
-def _monkey_patch_H2OFrame():
+def _monkey_patch_H2OFrame(hc):
     @staticmethod
     def determine_java_vec_type(vec):
         if vec.isEnum():
@@ -35,8 +35,7 @@ def _monkey_patch_H2OFrame():
         if hasattr(self, '_java_frame'):
             return self._java_frame
         else:
-            #TODO: Create new java H2OFrame based on the existing python H2OFrame and return it
-            raise
+            return hc._jhc.asH2OFrame(self._get()._id)
 
     @staticmethod
     def from_java_h2o_frame(h2o_frame, h2o_frame_id):
@@ -60,9 +59,9 @@ class H2OContext(object):
 
     def __init__(self, sparkContext):
         try:
-            # Hack H2OFrame from h2o package
-            _monkey_patch_H2OFrame()
             self._do_init(sparkContext)
+            # Hack H2OFrame from h2o package
+            _monkey_patch_H2OFrame(self)
         except:
             raise
 
@@ -111,8 +110,10 @@ class H2OContext(object):
         if (has_h2o):
             if (init_h2o_client):
                 h2o.init(ip=self._client_ip, port=self._client_port, strict_version_check = strict_version_check)
+            return self
         else:
             println("H2O package is not available!")
+            return None
 
     def stop(self):
         self._jhc.stop(False)
@@ -123,7 +124,7 @@ class H2OContext(object):
     def as_data_frame(self, h2o_frame):
         if isinstance(h2o_frame,H2OFrame):
             j_h2o_frame = h2o_frame.get_java_h2o_frame()
-            jdf = self._jhc.asDataFrame(j_h2o_frame, self._jsqlContext )
+            jdf = self._jhc.asDataFrame(j_h2o_frame, self._jsqlContext)
             return DataFrame(jdf,self._sqlContext)
 
     def is_of_simple_type(self, rdd):

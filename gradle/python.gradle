@@ -15,6 +15,7 @@ configurations {
   }
 }
 
+task compile(group: "Build tasks", description: "Compile this project")
 
 task build(group: "Build tasks", description: "Build and test this project")
 
@@ -24,4 +25,6 @@ task clean(group: "Build tasks", description: "Clean up the project", type: Dele
   delete file("build/")
 }
 
+build.dependsOn compile
+build.dependsOn test
 

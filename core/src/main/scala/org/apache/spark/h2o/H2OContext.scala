@@ -83,6 +83,8 @@ class H2OContext (@transient val sparkContext: SparkContext) extends {
   /** Implicit conversion from Frame to DataFrame */
   implicit def asH2OFrame(fr: Frame) : H2OFrame = new H2OFrame(fr)
 
+  def asH2OFrame(s: String): H2OFrame = new H2OFrame(s)
+
   /** Returns a key of given frame */
   implicit def toH2OFrameKey(fr: Frame): Key[Frame] = fr._key
 
@@ -114,11 +116,6 @@ class H2OContext (@transient val sparkContext: SparkContext) extends {
   /** Returns key of the H2O's DataFrame conversed from RDD[Long]*/
   def asH2OFrameFromRDDLongKey(rdd: JavaRDD[Long]): Key[Frame] = asH2OFrameFromRDDLong(rdd)._key
 
-  /**
-   * Support for calls from Py4J
-   */
-
-
   /** Transform given Scala symbol to String */
   implicit def symbolToString(sy: scala.Symbol): String = sy.name
 
@@ -133,6 +130,8 @@ class H2OContext (@transient val sparkContext: SparkContext) extends {
   @deprecated("1.3", "Use asDataFrame")
   def asSchemaRDD(fr : H2OFrame)(implicit sqlContext: SQLContext) : DataFrame = createH2OSchemaRDD(fr)
   def asDataFrame(fr : H2OFrame)(implicit sqlContext: SQLContext) : DataFrame = createH2OSchemaRDD(fr)
+  def asDataFrame(s : String)(implicit sqlContext: SQLContext) : DataFrame = createH2OSchemaRDD(new H2OFrame(s))
+
 
   /** Detected number of Spark executors
     * Property value is derived from SparkContext during creation of H2OContext. */
