@@ -662,7 +662,7 @@ object H2OContext extends Logging {
     //this is here to override the SQLContext by the spark shell, this instance than can be obtained using SQLContext.getOrCreate(sc)
     new SQLContext(sc)
 
-    //FIXME disable for now:registerScalaIntEndp(sc, h2OContext)
+    registerScalaIntEndp(sc, h2OContext)
     registerDataFramesEndp(sc, h2OContext)
     registerH2OFramesEndp(sc, h2OContext)
     registerRDDsEndp(sc)
