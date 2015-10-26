@@ -54,6 +54,24 @@ hc.start()
 
 ```
 
+# Running and debugging
+
+## From Python notebook
+Start script:
+ 
+```
+#!/usr/bin/env bash
+export PYTHONPATH=$H2O_HOME/h2o-py:$SPARKLING_HOME/py:$PYTHONPATH
+export SPARK_CLASSPATH=$SPARK_CLASSPATH:$SPARKLING_HOME/assembly/build/libs/sparkling-water-assembly-0.2.17-SNAPSHOT-all.jar
+echo $SPARK_CLASSPATH
+IPYTHON_OPTS="notebook" $SPARK_HOME/bin/pyspark
+```
+
+where:
+  - `H2O_HOME` points to H2O project which contains right python package
+  - `SPARKLING_HOME`  points to Sparkling project git repository
+
+
 # Testing
 
 ## Development testing
