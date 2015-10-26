@@ -16,31 +16,20 @@ ext {
     T = getProjectDir().toString()
 }
 
-task setProjectVersion << {
-    File INIT = new File([T, "pysparkling", "__init__.py"].join(File.separator))
-    def txt = ""
-    txt = INIT.text
-    txt = txt.replaceAll("SUBST_PROJECT_VERSION", PROJECT_VERSION)
-    INIT.write(txt)
-}
-
-
-task resetProjectVersion << {
-    File INIT = new File([T, "pysparkling", "__init__.py"].join(File.separator))
-    def txt = ""
-    txt = INIT.text
-    txt = txt.replaceAll(PROJECT_VERSION, "SUBST_PROJECT_VERSION")
-    INIT.write(txt)
+task createVersionFile << {
+    File version_file = new File([T, "version.txt"].join(File.separator))
+    def version_txt = PROJECT_VERSION
+    version_file.write(version_txt)
 }
 
 task copyJar(type: Copy) {
-            from configurations.compile
-            into "build/data_files"
-            include "sparkling-water-assembly-"+PROJECT_VERSION+"-all.jar"
-            rename "sparkling-water-assembly-"+PROJECT_VERSION+"-all.jar", "sparkling-water-all.jar"
+    from configurations.compile
+    into "build/data_files"
+    include "sparkling-water-assembly-"+PROJECT_VERSION+"-all.jar"
+    rename "sparkling-water-assembly-"+PROJECT_VERSION+"-all.jar", "sparkling-water-all.jar"
 }
 
-task dist(type: Exec) {
+task distPython(type: Exec) {
     def SPARK_HOME = System.getenv("SPARK_HOME")
     def H2O_HOME = System.getenv("H2O_HOME")
 
@@ -77,16 +66,17 @@ task testPython(type: Exec) {
 def testsPath = new File("./tests")
 
 task cleanPython(type: Delete) {
-    delete file("dist/"), file("pySparkling.egg-info/"), fileTree(dir: projectDir, include: '**/*.pyc')
+    delete file("dist/"), file("pySparkling.egg-info/"), fileTree(dir: projectDir, include: '**/*.pyc'),
+            file("version.txt")
 }
 
-clean.dependsOn cleanPython, resetProjectVersion
-setProjectVersion.dependsOn cleanPython
-copyJar.dependsOn setProjectVersion
-dist.dependsOn resetProjectVersion
-dist.dependsOn copyJar
+clean.dependsOn cleanPython
+createVersionFile.dependsOn cleanPython
+copyJar.dependsOn createVersionFile
+distPython.dependsOn copyJar
+
 // Build tasks
-task buildPython(dependsOn: resetProjectVersion)
+task buildPython(dependsOn: distPython)
 build.dependsOn buildPython
 
 test.dependsOn testPython
@@ -102,5 +92,3 @@ def getOS() {
 def getOsSpecificCommandLine(args) { 
   return Os.isFamily(Os.FAMILY_WINDOWS) ? ['cmd', '/c'] + args : args 
 }
-
-
