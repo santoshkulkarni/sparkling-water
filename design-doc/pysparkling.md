@@ -70,7 +70,7 @@ IPYTHON_OPTS="notebook" $SPARK_HOME/bin/pyspark
 where:
   - `H2O_HOME` points to H2O project which contains right python package
   - `SPARKLING_HOME`  points to Sparkling project git repository
-
+  - before run, Sparkling Water has to be build: `./gradlew build -x test`
 
 # Testing
 
