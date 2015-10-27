@@ -40,8 +40,7 @@ task distPython(type: Exec) {
     if (H2O_HOME != null) {
         environment['PYTHONPATH'] = H2O_HOME + File.separator + "h2o-py" + File.pathSeparator + environment["PYTHONPATH"]
     }
-    commandLine getOsSpecificCommandLine(["python", "setup.py", "bdist_wheel"])
-    commandLine getOsSpecificCommandLine(["python", "setup.py", "bdist_egg"])
+    commandLine getOsSpecificCommandLine(["python", "setup.py", "bdist_egg","bdist_wheel"])
     //commandLine getOsSpecificCommandLine(["python", "setup.py", "--help", "bdist_wheel"])
     //commandLine getOsSpecificCommandLine(["python", "setup.py", "--help-commands"])
 }
