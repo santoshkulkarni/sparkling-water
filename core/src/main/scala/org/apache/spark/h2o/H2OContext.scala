@@ -17,12 +17,14 @@
 
 package org.apache.spark.h2o
 
+import java.net.{URLClassLoader, URL}
+
 import org.apache.spark._
 import org.apache.spark.api.java.{JavaRDD, JavaSparkContext}
 import org.apache.spark.h2o.H2OContextUtils._
 import org.apache.spark.rdd.{H2ORDD, H2OSchemaRDD}
 import org.apache.spark.sql.types._
-import org.apache.spark.sql.{DataFrame, Row, SQLContext}
+import org.apache.spark.sql.{DataFrame, Row}
 import water._
 import water.api.DataFrames.DataFramesHandler
 import water.api.H2OFrames.H2OFramesHandler
@@ -30,6 +32,7 @@ import water.api.RDDs.RDDsHandler
 import water.api._
 import water.api.scalaInt.ScalaCodeHandler
 import water.parser.BufferedString
+import org.apache.spark.sql.SQLContext
 
 import scala.annotation.tailrec
 import scala.collection.mutable
@@ -43,7 +46,7 @@ import scala.util.Random
  *
  * It provides implicit conversion from RDD -> H2OLikeRDD and back.
  */
-class H2OContext (@transient val sparkContext: SparkContext) extends {
+class H2OContext private (@transient val sparkContext: SparkContext) extends {
     val sparkConf = sparkContext.getConf
   } with org.apache.spark.Logging
   with H2OConf
@@ -222,6 +225,7 @@ class H2OContext (@transient val sparkContext: SparkContext) extends {
     // Register web API for client
     H2OContext.registerClientWebAPI(sparkContext, this)
     H2O.finalizeRegistration()
+    
 
     // Fill information about H2O client
     localClientIp = H2O.SELF_ADDRESS.getHostAddress
@@ -344,18 +348,64 @@ class H2OContext (@transient val sparkContext: SparkContext) extends {
   }
 }
 
+object H2OContextHolder{
+  val instance: H2OContext = null
+}
+
 object H2OContext extends Logging {
+
+
+  def addURLToSystemClassLoader(url: URL) {
+    val systemClassLoader = ClassLoader.getSystemClassLoader.asInstanceOf[URLClassLoader]
+    val classLoaderClass = classOf[URLClassLoader]
+    try {
+      val method = classLoaderClass.getDeclaredMethod("addURL", classOf[URL])
+      method.setAccessible(true)
+      method.invoke(systemClassLoader, url)
+    } catch {
+      case e: Exception => e.printStackTrace();
+    }
+  }
+
+  def loadIfNotSet(sc: SparkContext)= {
+    val systemClassLoader = ClassLoader.getSystemClassLoader.asInstanceOf[URLClassLoader]
+    sc.jars.foreach{
+      jar => if( systemClassLoader.findResource(jar)==null){
+        addURLToSystemClassLoader(new URL(jar))
+      }
+    }
+  }
 
   /**
    * Create a new or return existing H2OContext.
    *
-   * @param sparkContext
-   * @return
+   * @param sc Spark Context
+   * @return H2O Context
    */
-  def getOrCreate(sparkContext: SparkContext): H2OContext = {
-    new H2OContext(sparkContext)
-  }
+  def getOrCreate(sc: SparkContext): H2OContext = {
+    loadIfNotSet(sc)
+    this.synchronized {
+      val ru = scala.reflect.runtime.universe
+      val mirror = ru.runtimeMirror(getClass.getClassLoader)
 
+      val h2oModuleSymbol = ru.typeOf[H2OContextHolder.type].termSymbol.asModule
+      val moduleMirror = mirror.reflectModule(h2oModuleSymbol)
+      val instanceMirror = mirror.reflect(moduleMirror.instance)
+
+      val h2oTerm = ru.typeOf[H2OContextHolder.type].declaration(ru.newTermName("instance")).asTerm.accessed.asTerm
+      val fieldMirror = instanceMirror.reflectField(h2oTerm)
+
+      var instance:H2OContext = fieldMirror.get.asInstanceOf[H2OContext]
+      if (instance == null) {
+        val H2OContextClazz = ClassLoader.getSystemClassLoader.loadClass(classOf[H2OContext].getName)
+        val constructor = H2OContextClazz.getDeclaredConstructor(classOf[SparkContext])
+        constructor.setAccessible(true)
+        instance = constructor.newInstance(sc).asInstanceOf[H2OContext]
+        fieldMirror.set(instance)
+      }
+      instance
+    }
+  }
   /** Transform SchemaRDD into H2O Frame */
   def toH2OFrame(sc: SparkContext, dataFrame: DataFrame, frameKeyName: Option[String]) : H2OFrame = {
     import org.apache.spark.h2o.H2OSchemaUtils._
@@ -610,12 +660,8 @@ object H2OContext extends Logging {
   }
 
   private[h2o] def registerClientWebAPI(sc: SparkContext, h2OContext: H2OContext): Unit = {
-    /** Need: SW-45
-    //this is here to override the SQLContext by the spark shell, this instance than can be obtained using SQLContext.getOrCreate(sc)
-    new SQLContext(sc)
 
-    //registerScalaIntEndp(sc, h2OContext)
-    */
+    registerScalaIntEndp(sc, h2OContext)
     registerDataFramesEndp(sc, h2OContext)
     registerH2OFramesEndp(sc, h2OContext)
     registerRDDsEndp(sc)
