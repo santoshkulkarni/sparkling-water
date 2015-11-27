@@ -52,7 +52,7 @@ object PubDev928Test extends SparkContextSupport {
     val train: H2OFrame = result('Year, 'Month, 'DayofMonth, 'DayOfWeek, 'CRSDepTime, 'CRSArrTime,
       'UniqueCarrier, 'FlightNum, 'TailNum, 'CRSElapsedTime, 'Origin, 'Dest,
       'Distance, 'IsDepDelayed )
-    //train.replace(train.numCols()-1, train.lastVec().toEnum)
+    train.replace(train.numCols()-1, train.lastVec().toCategoricalVec)
     println(train.lastVec().naCnt())
     // Configure Deep Learning algorithm
     val dlParams = new DeepLearningParameters()
@@ -65,7 +65,7 @@ object PubDev928Test extends SparkContextSupport {
     // THIS WILL FAIL
     val testFrame : H2OFrame = result
     // Verify that testFrame has at least on chunk with 0-rows
-    val av = testFrame.anyVec();
+    val av = testFrame.anyVec()
     assert( (0 until av.nChunks()).exists(idx => av.chunkForChunkIdx(idx).len() == 0), "At least on chunk with 0-rows has to exist!")
 
     val predictionH2OFrame = dlModel.score(testFrame)('predict)
